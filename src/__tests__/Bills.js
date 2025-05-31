@@ -5,6 +5,7 @@
 import { screen, waitFor } from "@testing-library/dom";
 import { localStorageMock } from "../__mocks__/localStorage.js";
 import { ROUTES_PATH } from "../constants/routes.js";
+import Bills from "../containers/Bills.js";
 import { bills } from "../fixtures/bills.js";
 import BillsUI from "../views/BillsUI.js";
 
@@ -42,6 +43,92 @@ describe("Given I am connected as an employee", () => {
       const antiChrono = (a, b) => (a < b ? 1 : -1);
       const datesSorted = [...dates].sort(antiChrono);
       expect(dates).toEqual(datesSorted);
+    });
+
+    test("Then clicking on 'Nouvelle note de frais' should navigate to NewBill page", () => {
+      document.body.innerHTML = BillsUI({ data: [] });
+      const onNavigate = jest.fn();
+      const billsContainer = new Bills({
+        document,
+        onNavigate,
+        store: null,
+        localStorage: window.localStorage,
+      });
+      const newBillBtn = screen.getByTestId("btn-new-bill");
+      newBillBtn.click();
+      expect(onNavigate).toHaveBeenCalledWith(ROUTES_PATH.NewBill);
+    });
+
+    test("Then clicking on the eye icon should open the modal with the image", () => {
+      $.fn.modal = jest.fn();
+      document.body.innerHTML = BillsUI({ data: bills });
+      const onNavigate = jest.fn();
+      const billsContainer = new Bills({
+        document,
+        onNavigate,
+        store: null,
+        localStorage: window.localStorage,
+      });
+      const eyeIcon = screen.getAllByTestId("icon-eye")[0];
+      eyeIcon.click();
+      expect($.fn.modal).toHaveBeenCalled();
+      expect(document.querySelector(".bill-proof-container img")).toBeTruthy();
+    });
+
+    describe("When I call getBills()", () => {
+      test("Then it should return formatted bills if data is valid", async () => {
+        const store = {
+          bills: () => ({
+            list: () =>
+              Promise.resolve([
+                {
+                  id: "1",
+                  date: "2022-01-01",
+                  status: "pending",
+                  name: "Facture 1",
+                },
+              ]),
+          }),
+        };
+
+        const billsContainer = new Bills({
+          document,
+          onNavigate: jest.fn(),
+          store,
+          localStorage: window.localStorage,
+        });
+
+        const result = await billsContainer.getBills();
+        expect(result[0].date).toMatch(/\d{1,2} [A-Za-zéû]+\.* \d{2}/);
+        expect(result[0].status).not.toBe("pending");
+      });
+
+      test("Then it should return unformatted date if date is corrupted", async () => {
+        const corruptedStore = {
+          bills: () => ({
+            list: () =>
+              Promise.resolve([
+                {
+                  id: "1",
+                  date: "not-a-date",
+                  status: "pending",
+                  name: "Facture invalide",
+                },
+              ]),
+          }),
+        };
+
+        const billsContainer = new Bills({
+          document,
+          onNavigate: jest.fn(),
+          store: corruptedStore,
+          localStorage: window.localStorage,
+        });
+
+        const result = await billsContainer.getBills();
+        expect(result[0].date).toBe("not-a-date");
+        expect(result[0].status).not.toBe("pending");
+      });
     });
   });
 });
