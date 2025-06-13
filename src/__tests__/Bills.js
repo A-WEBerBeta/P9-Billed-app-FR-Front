@@ -12,8 +12,6 @@ import BillsUI from "../views/BillsUI.js";
 
 import router from "../app/Router.js";
 
-import store from "../app/Store.js";
-
 jest.mock("../app/Store.js", () => ({
   __esModule: true,
   default: {
@@ -147,12 +145,13 @@ describe("Given I am connected as an employee", () => {
       });
 
       test("Then it should display error message from API which failed with 404 message error", async () => {
-        store.bills.mockImplementationOnce(() => ({
-          list: () => Promise.reject(new Error("Erreur 404")),
-        }));
+        const storeWithError = {
+          bills: () => ({
+            list: () => Promise.reject(new Error("Erreur 404")),
+          }),
+        };
 
-        const html = BillsUI({ error: "Erreur 404" });
-        document.body.innerHTML = html;
+        document.body.innerHTML = BillsUI({ data: [] });
 
         Object.defineProperty(window, "localStorage", {
           value: {
@@ -164,12 +163,14 @@ describe("Given I am connected as an employee", () => {
 
         const onNavigate = jest.fn();
 
-        const bills = new Bills({
+        const billsContainer = new Bills({
           document,
           onNavigate,
-          store,
+          store: storeWithError,
           localStorage: window.localStorage,
         });
+
+        await billsContainer.getBills(); // <-- Appelle réellement getBills
 
         await waitFor(() => {
           const errorMsg = screen.getByTestId("error-message");

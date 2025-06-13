@@ -77,6 +77,46 @@ describe("Given I am connected as an employee", () => {
       });
     });
 
+    test("When I upload a file with invalid extension, it should alert and reset input", () => {
+      const html = NewBillUI();
+      document.body.innerHTML = html;
+
+      Object.defineProperty(window, "localStorage", {
+        value: mockLocalStorage,
+      });
+
+      const onNavigate = jest.fn();
+      const store = {
+        bills: () => ({
+          create: jest.fn(),
+        }),
+      };
+
+      const newBill = new NewBill({
+        document,
+        onNavigate,
+        store,
+        localStorage: window.localStorage,
+      });
+
+      const fileInput = screen.getByTestId("file");
+
+      // Spy sur alert
+      window.alert = jest.fn();
+
+      // Fichier avec extension invalide
+      const file = new File(["dummy content"], "test.pdf", {
+        type: "application/pdf",
+      });
+
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      expect(window.alert).toHaveBeenCalledWith(
+        "Seuls les fichiers JPG, JPEG et PNG sont autorisés."
+      );
+      expect(fileInput.value).toBe("");
+    });
+
     test("When I submit the form, it should call updateBill and navigate to Bills", async () => {
       // Given
       const html = NewBillUI();
