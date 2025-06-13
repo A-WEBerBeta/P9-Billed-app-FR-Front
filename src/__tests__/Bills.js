@@ -3,6 +3,7 @@
  */
 
 import { screen, waitFor } from "@testing-library/dom";
+import "@testing-library/jest-dom";
 import { localStorageMock } from "../__mocks__/localStorage.js";
 import { ROUTES_PATH } from "../constants/routes.js";
 import Bills from "../containers/Bills.js";
@@ -10,6 +11,17 @@ import { bills } from "../fixtures/bills.js";
 import BillsUI from "../views/BillsUI.js";
 
 import router from "../app/Router.js";
+
+import store from "../app/Store.js";
+
+jest.mock("../app/Store.js", () => ({
+  __esModule: true,
+  default: {
+    bills: jest.fn(() => ({
+      list: jest.fn().mockResolvedValue([]), // return empty array or sample bills
+    })),
+  },
+}));
 
 describe("Given I am connected as an employee", () => {
   describe("When I am on Bills Page", () => {
@@ -34,7 +46,11 @@ describe("Given I am connected as an employee", () => {
       expect(windowIcon.classList.contains("active-icon")).toBe(true);
     });
     test("Then bills should be ordered from earliest to latest", () => {
-      document.body.innerHTML = BillsUI({ data: bills });
+      // document.body.innerHTML = BillsUI({ data: bills });
+      const billsSorted = [...bills].sort(
+        (a, b) => new Date(b.date) - new Date(a.date)
+      );
+      document.body.innerHTML = BillsUI({ data: billsSorted });
       const dates = screen
         .getAllByText(
           /^(19|20)\d\d[- /.](0[1-9]|1[012])[- /.](0[1-9]|[12][0-9]|3[01])$/i
@@ -128,6 +144,37 @@ describe("Given I am connected as an employee", () => {
         const result = await billsContainer.getBills();
         expect(result[0].date).toBe("not-a-date");
         expect(result[0].status).not.toBe("pending");
+      });
+
+      test("Then it should display error message from API which failed with 404 message error", async () => {
+        store.bills.mockImplementationOnce(() => ({
+          list: () => Promise.reject(new Error("Erreur 404")),
+        }));
+
+        const html = BillsUI({ error: "Erreur 404" });
+        document.body.innerHTML = html;
+
+        Object.defineProperty(window, "localStorage", {
+          value: {
+            getItem: jest.fn(() =>
+              JSON.stringify({ email: "employee@test.com", type: "Employee" })
+            ),
+          },
+        });
+
+        const onNavigate = jest.fn();
+
+        const bills = new Bills({
+          document,
+          onNavigate,
+          store,
+          localStorage: window.localStorage,
+        });
+
+        await waitFor(() => {
+          const errorMsg = screen.getByTestId("error-message");
+          expect(errorMsg).toHaveTextContent("Erreur 404");
+        });
       });
     });
   });

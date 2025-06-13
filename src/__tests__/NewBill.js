@@ -3,8 +3,18 @@
  */
 
 import { fireEvent, screen, waitFor } from "@testing-library/dom";
+import "@testing-library/jest-dom";
 import NewBill from "../containers/NewBill.js";
 import NewBillUI from "../views/NewBillUI.js";
+
+import store from "../app/Store.js";
+
+jest.mock("../app/Store.js", () => ({
+  __esModule: true,
+  default: {
+    bills: jest.fn(),
+  },
+}));
 
 // Mock localStorage
 const mockLocalStorage = {
@@ -125,6 +135,47 @@ describe("Given I am connected as an employee", () => {
       await waitFor(() => {
         expect(updateBillSpy).toHaveBeenCalled();
         expect(onNavigate).toHaveBeenCalled();
+      });
+    });
+
+    describe("When an error occurs on API", () => {
+      test("create new bill from an API and fails with 500 message error", async () => {
+        store.bills.mockImplementationOnce(() => ({
+          create: () => Promise.reject(new Error("Erreur 500")),
+        }));
+
+        const html = NewBillUI();
+        document.body.innerHTML = html;
+
+        Object.defineProperty(window, "localStorage", {
+          value: {
+            getItem: jest.fn(() =>
+              JSON.stringify({ email: "employee@test.com", type: "Employee" })
+            ),
+          },
+        });
+
+        const onNavigate = jest.fn();
+
+        const newBill = new NewBill({
+          document,
+          onNavigate,
+          store,
+          localStorage: window.localStorage,
+        });
+
+        // Act - simulate file upload to trigger create() and the error
+        const fileInput = screen.getByTestId("file");
+        const file = new File(["dummy content"], "error.png", {
+          type: "image/png",
+        });
+        fireEvent.change(fileInput, { target: { files: [file] } });
+
+        // Assert
+        await waitFor(() => {
+          const errorMsg = screen.getByTestId("error-message");
+          expect(errorMsg).toHaveTextContent("Erreur 500");
+        });
       });
     });
   });

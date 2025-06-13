@@ -60,14 +60,17 @@ export default class NewBill {
         this.fileUrl = fileUrl;
         this.fileName = fileName;
       })
-      .catch((error) => console.error(error));
+      .catch((error) => {
+        console.error(error);
+        const errorMessage = document.createElement("p");
+        errorMessage.textContent = error.message;
+        errorMessage.setAttribute("data-testid", "error-message");
+        this.document.body.appendChild(errorMessage);
+      });
   };
   handleSubmit = (e) => {
     e.preventDefault();
-    console.log(
-      'e.target.querySelector(`input[data-testid="datepicker"]`).value',
-      e.target.querySelector(`input[data-testid="datepicker"]`).value
-    );
+
     const email = JSON.parse(localStorage.getItem("user")).email;
     const bill = {
       email,

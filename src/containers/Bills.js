@@ -42,9 +42,7 @@ export default class {
         .list()
         .then((snapshot) => {
           const bills = snapshot
-            .sort(
-              (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-            )
+            .sort((a, b) => new Date(b.date) - new Date(a.date))
             .map((doc) => {
               try {
                 return {
@@ -64,6 +62,13 @@ export default class {
               }
             });
           return bills;
+        })
+        .catch((error) => {
+          console.error(error);
+          const errorMessage = document.createElement("p");
+          errorMessage.textContent = error.message;
+          errorMessage.setAttribute("data-testid", "error-message");
+          this.document.body.appendChild(errorMessage);
         });
     }
   };
