@@ -217,6 +217,69 @@ describe("Given I am connected as an employee", () => {
           expect(errorMsg).toHaveTextContent("Erreur 500");
         });
       });
+
+      test("updateBill logs error when store.bills().update fails", async () => {
+        const html = NewBillUI();
+        document.body.innerHTML = html;
+
+        Object.defineProperty(window, "localStorage", {
+          value: mockLocalStorage,
+        });
+
+        const onNavigate = jest.fn();
+        const error = new Error("Erreur update");
+
+        const storeWithUpdateError = {
+          bills: () => ({
+            update: jest.fn().mockRejectedValue(error),
+          }),
+        };
+
+        const newBill = new NewBill({
+          document,
+          onNavigate,
+          store: storeWithUpdateError,
+          localStorage: window.localStorage,
+        });
+
+        // Remplir le formulaire minimalement
+        fireEvent.change(screen.getByTestId("expense-type"), {
+          target: { value: "Transports" },
+        });
+        fireEvent.change(screen.getByTestId("expense-name"), {
+          target: { value: "Train" },
+        });
+        fireEvent.change(screen.getByTestId("datepicker"), {
+          target: { value: "2023-06-12" },
+        });
+        fireEvent.change(screen.getByTestId("amount"), {
+          target: { value: "50" },
+        });
+        fireEvent.change(screen.getByTestId("vat"), {
+          target: { value: "10" },
+        });
+        fireEvent.change(screen.getByTestId("pct"), {
+          target: { value: "20" },
+        });
+        fireEvent.change(screen.getByTestId("commentary"), {
+          target: { value: "Déplacement pro" },
+        });
+
+        newBill.fileUrl = "https://localhost/file.jpg";
+        newBill.fileName = "file.jpg";
+
+        const consoleErrorSpy = jest
+          .spyOn(console, "error")
+          .mockImplementation();
+
+        fireEvent.submit(screen.getByTestId("form-new-bill"));
+
+        await waitFor(() => {
+          expect(consoleErrorSpy).toHaveBeenCalledWith(error);
+        });
+
+        consoleErrorSpy.mockRestore();
+      });
     });
   });
 });
